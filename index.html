@@ -1,1 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For My Crush</title>
+    
+</head>
+<body>
+
+    <div class="card" id="cardContainer">
+        <div class="heart">❤️</div>
+        <h1>Hey Crushie</h1>
+        <p id="message">Si unakaa fiti😉,just a quick question for you 😊</p>
+
+        <h2>Wanna hang out with me?</h2>
+
+        <div class="buttons">
+            <div class="top-buttons">
+                <button id="yesBtn">Yes 🥰</button>
+                <button id="maybeBtn">Maybe 😉</button>
+            </div>
+            <button id="noBtn">No 🥺</button>
+        </div>
+
+        <p id="maybeCaption" style="display:none; color:#ff9f1a; font-weight:bold;"></p>
+        <p id="smallest">Kumbuka nakaa poa before you pick No 😜</p>
+    </div>
+
+    <script>
+        const yesBtn = document.getElementById('yesBtn');
+        const maybeBtn = document.getElementById('maybeBtn');
+        const noBtn = document.getElementById('noBtn');
+        const smallestText = document.getElementById('smallest');
+        const maybeCaption = document.getElementById('maybeCaption');
+        const cardContainer = document.getElementById('cardContainer');
+
+        const WHATSAPP_NUMBER = "254713474740";
+
+        let noCount = 0;
+        const hints = [
+            "Mbona unakimbilia No 🤨",
+            "No pia inaona ni fate, finya yes 😉",
+            "Achana na no 😩",
+            "Usikuwe hivo 😍",
+            "Come on 😁",
+            "No imekataa😂",
+            "Just say yes😉",
+            "Say yes😒",
+            "No imekataa, just pick yes 😂"
+        ];
+
+        function rectsOverlap(r1, r2, gap) {
+            return !(
+                r1.right + gap < r2.left ||
+                r1.left - gap > r2.right ||
+                r1.bottom + gap < r2.top ||
+                r1.top - gap > r2.bottom
+            );
+        }
+
+        function moveButton() {
+            noCount++;
+            const hintIndex = (noCount - 1) % hints.length;
+            smallestText.textContent = hints[hintIndex];
+
+            const padding = 50;
+            const gap = 20; // safety gap from other elements
+            const maxX = window.innerWidth - noBtn.offsetWidth - padding;
+            const maxY = window.innerHeight - noBtn.offsetHeight - padding;
+
+            // Collect rects of everything else on the card so noBtn never lands on top of them
+            const obstacles = Array.from(cardContainer.querySelectorAll('button, .option-btn, textarea, input, h1, h2, p'))
+                .filter(el => el !== noBtn)
+                .map(el => el.getBoundingClientRect());
+
+            let randomX, randomY, candidateRect;
+            let attempts = 0;
+            const maxAttempts = 60;
+
+            do {
+                randomX = Math.max(padding, Math.floor(Math.random() * maxX));
+                randomY = Math.max(padding, Math.floor(Math.random() * maxY));
+                candidateRect = {
+                    left: randomX,
+                    right: randomX + noBtn.offsetWidth,
+                    top: randomY,
+                    bottom: randomY + noBtn.offsetHeight
+                };
+                attempts++;
+            } while (
+                obstacles.some(rect => rectsOverlap(candidateRect, rect, gap)) &&
+                attempts < maxAttempts
+            );
+
+            noBtn.style.position = 'fixed';
+            noBtn.style.left = randomX + 'px';
+            noBtn.style.top = randomY + 'px';
+        }
+
+        noBtn.addEventListener('mouseover', moveButton);
+        noBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            moveButton();
+        });
+
+        // ---- state ----
+        const dateState = {
+            venue: null,
+            food: "",
+            day: "",
+            time: "",
+            notes: ""
+        };
+
+        const venues = [
+            { id: "alfa", label: "🏨 Alfa Hotel", needsFood: true },
+            { id: "cafe360", label: "☕ Cafe 360", needsFood: true },
+            { id: "restaurant", label: "🍽️ Neighbourhood Restaurant", needsFood: true },
+            { id: "walk", label: "🚶‍♀️ Walk Around Town", needsFood: false },
+            { id: "netflix", label: "🎬 Netflix & Chill at My Place", needsFood: false }
+        ];
+
+        function venueLabel(id) {
+            const v = venues.find(v => v.id === id);
+            return v ? v.label : "";
+        }
+
+        yesBtn.addEventListener('click', () => {
+            renderVenueStep();
+        });
+
+        maybeBtn.addEventListener('click', () => {
+            maybeCaption.style.display = 'block';
+            maybeCaption.textContent = "Maybe means yes 😉 lets go ahead and plan our date";
+            setTimeout(() => {
+                renderVenueStep();
+            }, 1400);
+        });
+
+        function renderVenueStep() {
+            cardContainer.innerHTML = `
+                <div class="heart" style="animation: beat 0.6s infinite alternate;">❤️</div>
+                <h1 style="font-size: 32px;">Yay! 🎉</h1>
+                <p style="font-weight: bold; color: #333;">Knew you liked me too!</p>
+                <h2 style="font-size: 19px;">Where do you wanna go?</h2>
+                <div class="options" id="venueOptions"></div>
+                <button class="primary-btn" id="venueNextBtn" disabled>Next ➡️</button>
+            `;
+
+            const venueOptions = document.getElementById('venueOptions');
+            venues.forEach(v => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = v.label;
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    dateState.venue = v.id;
+                    document.getElementById('venueNextBtn').disabled = false;
+                });
+                venueOptions.appendChild(btn);
+            });
+
+            document.getElementById('venueNextBtn').addEventListener('click', () => {
+                const v = venues.find(v => v.id === dateState.venue);
+                if (v && v.needsFood) {
+                    renderFoodStep();
+                } else {
+                    renderDateTimeStep();
+                }
+            });
+        }
+
+        function renderFoodStep() {
+            cardContainer.innerHTML = `
+                <div class="heart" style="font-size: 35px;">🍴</div>
+                <h2 style="font-size: 19px;">Nice choice! What do you feel like eating?</h2>
+                <textarea id="foodInput" rows="3" placeholder="e.g. chips, chapo😁, ugali,... anything you're craving"></textarea>
+                <button class="primary-btn" id="foodNextBtn">Next ➡️</button>
+                <span class="back-link" id="backToVenue">⬅ back</span>
+            `;
+
+            document.getElementById('foodNextBtn').addEventListener('click', () => {
+                dateState.food = document.getElementById('foodInput').value.trim();
+                renderDateTimeStep();
+            });
+
+            document.getElementById('backToVenue').addEventListener('click', renderVenueStep);
+        }
+
+        function renderDateTimeStep() {
+            cardContainer.innerHTML = `
+                <div class="heart" style="font-size: 35px;">📅</div>
+                <h2 style="font-size: 19px;">When works for you?</h2>
+                <label for="dayInput">Day</label>
+                <input type="date" id="dayInput" value="${dateState.day || ''}">
+                <label for="timeInput">Time</label>
+                <input type="time" id="timeInput" value="${dateState.time || ''}">
+                <button class="primary-btn" id="dateTimeNextBtn" style="margin-top:20px;">Next ➡️</button>
+                <span class="back-link" id="backFromDateTime">⬅ back</span>
+            `;
+
+            document.getElementById('dateTimeNextBtn').addEventListener('click', () => {
+                dateState.day = document.getElementById('dayInput').value;
+                dateState.time = document.getElementById('timeInput').value;
+                renderNotesStep();
+            });
+
+            document.getElementById('backFromDateTime').addEventListener('click', () => {
+                const v = venues.find(v => v.id === dateState.venue);
+                if (v && v.needsFood) {
+                    renderFoodStep();
+                } else {
+                    renderVenueStep();
+                }
+            });
+        }
+
+        function formatDay(dayStr) {
+            if (!dayStr) return "";
+            const d = new Date(dayStr + "T00:00:00");
+            if (isNaN(d)) return dayStr;
+            return d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function formatTime(timeStr) {
+            if (!timeStr) return "";
+            const [h, m] = timeStr.split(':');
+            const d = new Date();
+            d.setHours(parseInt(h, 10), parseInt(m, 10));
+            return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        }
+
+        function renderNotesStep() {
+            cardContainer.innerHTML = `
+                <div class="heart" style="font-size: 35px;">💭</div>
+                <h2 style="font-size: 19px;">Any ideas or expectations for our date?</h2>
+                <textarea id="notesInput" rows="4" placeholder="Anything you'd love, time that works for you, vibes you want... (optional)"></textarea>
+                <button class="primary-btn" id="notesNextBtn">Review ➡️</button>
+                <span class="back-link" id="backFromNotes">⬅ back</span>
+            `;
+
+            document.getElementById('notesNextBtn').addEventListener('click', () => {
+                dateState.notes = document.getElementById('notesInput').value.trim();
+                renderSummaryStep();
+            });
+
+            document.getElementById('backFromNotes').addEventListener('click', renderDateTimeStep);
+        }
+
+        function renderSummaryStep() {
+            const v = venues.find(v => v.id === dateState.venue);
+
+            let summaryHtml = `<div class="summary-box">`;
+            summaryHtml += `<b>Spot:</b> ${venueLabel(dateState.venue)}<br>`;
+            if (v && v.needsFood) {
+                summaryHtml += `<b>Food:</b> ${dateState.food ? dateState.food : "didn't say, will decide there 😄"}<br>`;
+            }
+            summaryHtml += `<b>When:</b> ${dateState.day ? formatDay(dateState.day) : "no day picked"}${dateState.time ? ", " + formatTime(dateState.time) : ""}<br>`;
+            summaryHtml += `<b>Her ideas:</b> ${dateState.notes ? dateState.notes : "none, surprise her 😉"}`;
+            summaryHtml += `</div>`;
+
+            cardContainer.innerHTML = `
+                <div class="heart" style="font-size: 35px;">📝</div>
+                <h2 style="font-size: 19px;">Here's our plan!</h2>
+                ${summaryHtml}
+                <p style="font-size: 14px;">Hit the button below to send this straight to my WhatsApp 💌</p>
+                <button class="primary-btn" id="sendBtn">Send to WhatsApp 💬</button>
+                <span class="back-link" id="backFromSummary">⬅ edit</span>
+            `;
+
+            document.getElementById('sendBtn').addEventListener('click', sendToWhatsApp);
+            document.getElementById('backFromSummary').addEventListener('click', renderNotesStep);
+        }
+
+        function sendToWhatsApp() {
+            const v = venues.find(v => v.id === dateState.venue);
+            let message = `Heyy 😊 I said YES to our date!\n\n`;
+            message += `📍 Spot: ${venueLabel(dateState.venue)}\n`;
+            if (v && v.needsFood) {
+                message += `🍴 Food craving: ${dateState.food ? dateState.food : "Not sure yet, surprise me 😉"}\n`;
+            }
+            message += `📅 When: ${dateState.day ? formatDay(dateState.day) : "Didn't pick a day"}${dateState.time ? ", " + formatTime(dateState.time) : ""}\n`;
+            message += `💭 My ideas/expectations: ${dateState.notes ? dateState.notes : "None, you plan the rest 😘"}\n`;
+            message += `\nCan't wait! 🥰`;
+
+            const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+            window.open(url, '_blank');
+
+            cardContainer.innerHTML = `
+                <div class="heart" style="animation: beat 0.6s infinite alternate;">❤️</div>
+                <h1 style="font-size: 32px;">Sent! 🎉</h1>
+                <p style="color: #ff4d6d; font-size: 18px;">Tunameet hivi karibuni 🥰</p>
+            `;
+        }
+    </script>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #ffdde1, #ee9ca7);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 20px 0;
+        }
+
+        .card {
+            background: white;
+            width: 90%;
+            max-width: 380px;
+            padding: 30px 20px;
+            border-radius: 25px;
+            text-align: center;
+            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .heart {
+            font-size: 45px;
+            color: #ff4d6d;
+            margin-bottom: 20px;
+            animation: beat 1s infinite alternate;
+        }
+
+        h1 {
+            color: #ff4d6d;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        h2 {
+            color: #333;
+            margin-top: 25px;
+            margin-bottom: 25px;
+            font-size: 22px;
+        }
+
+        p {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.5;
+            margin: 10px 0;
+        }
+
+        .buttons {
+            margin-top: 25px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .top-buttons {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: none;
+            padding: 12px 28px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        #yesBtn, .primary-btn {
+            background-color: #ff4d6d;
+            color: white;
+        }
+
+        #yesBtn:hover, .primary-btn:hover {
+            transform: scale(1.05);
+            background-color: #ff2f55;
+        }
+
+        #maybeBtn {
+            background-color: #ffb84d;
+            color: white;
+        }
+
+        #maybeBtn:hover {
+            transform: scale(1.05);
+            background-color: #ff9f1a;
+        }
+
+        #noBtn {
+            background-color: #eee;
+            color: #333;
+        }
+
+        #smallest {
+            font-size: 14px;
+            color: #888;
+            margin-top: 20px;
+            min-height: 24px;
+        }
+
+        @keyframes beat {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.2); }
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .option-btn {
+            background-color: #fff0f2;
+            color: #ff4d6d;
+            border: 2px solid #ffd1d9;
+            padding: 14px;
+            border-radius: 15px;
+            font-size: 15px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .option-btn:hover {
+            background-color: #ffe0e4;
+            transform: scale(1.02);
+        }
+
+        .option-btn.selected {
+            background-color: #ff4d6d;
+            color: white;
+            border-color: #ff4d6d;
+        }
+
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid #ffd1d9;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+            margin-top: 8px;
+            margin-bottom: 5px;
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #ff4d6d;
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            color: #333;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+
+        .primary-btn {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .primary-btn:disabled {
+            background-color: #f5c2cb;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 15px;
+            color: #aaa;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .summary-box {
+            background: #fff5f6;
+            border-radius: 12px;
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 14px;
+            color: #444;
+            margin: 15px 0;
+            border: 1px solid #ffd1d9;
+        }
+
+        .summary-box b {
+            color: #ff4d6d;
+        }
+    </style>
+
+</body>
+</html>
 
